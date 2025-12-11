@@ -65,8 +65,8 @@ pipeline {
                     echo "--- 🧹 Limpieza ---"
                     sh "docker logout"
                     // Borra la imagen del entorno de Jenkins para ahorrar espacio
-                    sh "docker rmi ${IMAGE_NAME}:latest"
-                    sh "docker rmi ${IMAGE_NAME}:v${BUILD_NUMBER}"
+                    sh "docker rmi ${IMAGE_NAME}:latest || true"
+                    sh "docker rmi ${IMAGE_NAME}:v${BUILD_NUMBER} || true"
                 }
             }
         }
