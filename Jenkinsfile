@@ -7,6 +7,8 @@ pipeline {
         IMAGE_NAME = "${DOCKER_USER}/front-taller"
         registryCredential = 'docker-hub-credentials'
         DOCKER_BUILDKIT = '0'
+        CONTAINER_NAME = 'angular-taller-deploy'
+        APP_PORT = '8080'
     }
 
     stages {
@@ -42,6 +44,21 @@ pipeline {
             }
         }
         
+        // --- ESTA ES LA ETAPA NUEVA: DESPLIEGUE ---
+        stage('Deploy Local') {
+            steps {
+                script {
+                    echo "--- 🔄 Actualizando contenedor local ---"
+                    // 1. Intentamos borrar el contenedor viejo (si existe)
+                    // El '|| true' hace que no falle el pipeline si es la primera vez y no existe
+                    sh "docker rm -f ${CONTAINER_NAME} || true"
+                    
+                    // 2. Arrancamos el nuevo en el puerto 8081
+                    sh "docker run -d -p ${APP_PORT}:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
         stage('Cleanup') {
             steps {
                 script {
