@@ -39,41 +39,49 @@ pipeline {
         stage('Quality Gate (Robot Framework)') {
             steps {
                 script {
-                    echo "--- ⬇️ Descargando repositorio de QA ---"
-                    
-                    // 1. Clonamos TU repositorio externo en la carpeta 'pruebas-externas'
+                    echo "--- ⬇️ Descargando tests ---"
                     dir('pruebas-externas') {
-                        // Sustituye con tu URL real
+                        // RECUERDA PONER TU URL DEL REPO DE TESTS AQUI
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos'
                     }
 
-                    echo "--- 🤖 Iniciando Tests Específicos ---"
+                    echo "--- 🤖 Preparando Red y Entorno ---"
+                    // Nombre de la red privada para esta prueba
+                    def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
+                    
                     try {
-                        // 2. Arrancar la App Angular en puerto de Test (8082)
+                        // 1. Creamos una red temporal exclusiva para este test
+                        sh "docker network create ${NETWORK_NAME}"
+
+                        // 2. Arrancamos la App CONECTADA a esa red
+                        // Le damos el nombre 'angular-app-test-temp' (que pusimos en el smoke.robot)
                         sh "docker rm -f ${CONTAINER_TEST} || true"
-                        sh "docker run -d -p ${PORT_TEST}:80 --name ${CONTAINER_TEST} ${IMAGE_NAME}:latest"
+                        sh "docker run -d --network ${NETWORK_NAME} --name ${CONTAINER_TEST} ${IMAGE_NAME}:latest"
                         
+                        echo "--- ⏳ Esperando a que Angular arranque ---"
                         sleep 5
 
-                        // 3. Ejecutar Robot Framework
-                        // EXPLICACIÓN DE LOS CAMBIOS:
-                        // -v .../pruebas-externas:/opt/robotframework/tests : Montamos TODA la raíz del repo.
-                        // Al final del comando añadimos 'test' : Esto le dice a Robot "Entra en la carpeta 'test' y ejecuta eso".
-                        
+                        // 3. Ejecutar Robot CONECTADO a la misma red
+                        // Ahora Robot puede ver a 'angular-app-test-temp' directamente
                         sh """
-                          docker run --rm --network host \
+                          docker run --rm --network ${NETWORK_NAME} \
                           -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest \
                           tests
                         """
-                        // NOTA: Si tu carpeta se llama 'tests' (plural), cambia la última palabra por 'tests'
-                        
+                        // Asegúrate de que la última palabra ('test') coincide con tu carpeta del repo
+
                     } catch (Exception e) {
                         currentBuild.result = 'FAILURE'
-                        error("❌ Los tests de QA fallaron.")
+                        echo "❌ ERROR: Los tests fallaron. Mostrando logs del contenedor para depurar:"
+                        // TRUCO DE EXPERTO: Si falla, mostramos qué pasó dentro de la app Angular
+                        sh "docker logs ${CONTAINER_TEST}"
+                        error("Fallaron los tests de QA")
                     } finally {
+                        // 4. Limpieza total (Borrar contenedor y red)
                         sh "docker rm -f ${CONTAINER_TEST} || true"
+                        sh "docker network rm ${NETWORK_NAME} || true"
                     }
                 }
             }
