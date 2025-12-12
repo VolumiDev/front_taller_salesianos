@@ -65,7 +65,7 @@ pipeline {
                           -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest \
-                          test
+                          tests
                         """
                         // NOTA: Si tu carpeta se llama 'tests' (plural), cambia la última palabra por 'tests'
                         
