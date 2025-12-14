@@ -57,15 +57,12 @@ stage('Quality Gate (Robot Framework)') {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- SOLUCIÓN MAESTRA ---
-                        // 1. Montamos tu carpeta 'tests' (local) -> en 'tests' (contenedor).
-                        //    Así 'smoke.robot' queda en la raíz de tests.
-                        // 2. Montamos tu carpeta 'resources' (local) -> en 'resources' (contenedor).
-                        //    Así la referencia '../resources' funciona.
-                        // 3. NO escribimos nada al final del comando. Dejamos que el contenedor use su default.
+                        // --- SOLUCIÓN DE PERMISOS ---
+                        // 1. Añadimos '-u 0' para ejecutar como ROOT y evitar problemas de lectura.
+                        // 2. Mantenemos el montaje "espejo" que hiciste en el Build 17 (era correcto).
                         
                         sh """
-                          docker run --rm --network ${NETWORK_NAME} \
+                          docker run --rm --network ${NETWORK_NAME} -u 0 \
                           -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
                           -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
