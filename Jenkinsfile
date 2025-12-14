@@ -67,8 +67,7 @@ pipeline {
                           docker run --rm --network ${NETWORK_NAME} \
                           -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
-                          ppodgorsek/robot-framework:latest \
-                          tests
+                          ppodgorsek/robot-framework:latest
                         """
                         // Asegúrate de que la última palabra ('test') coincide con tu carpeta del repo
 
