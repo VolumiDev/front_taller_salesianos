@@ -47,10 +47,6 @@ pipeline {
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos.git'
                     }
 
-                    echo "--- 🔍 DEBUG: Listando estructura de archivos descargada ---"
-                    // ESTO ES CLAVE: Nos dirá dónde está realmente el archivo smoke.robot
-                    sh "ls -R pruebas-externas"
-
                     def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
                     
                     try {
@@ -63,15 +59,12 @@ pipeline {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // CORRECCIÓN DE VOLÚMENES:
-                        // 1. Montamos la carpeta raíz 'pruebas-externas' completa en '/opt/robotframework/tests'.
-                        // 2. Así, si 'smoke.robot' está en la raíz, aparecerá en /opt/robotframework/tests/smoke.robot
-                        // 3. Quitamos el montaje separado de 'resources' porque ya irá incluido en la carpeta raíz.
-                        
+                        // CORRECCIÓN APLICADA AQUÍ: Montaje explícito de carpetas
                         sh """
                           docker run --rm --network ${NETWORK_NAME} -u 0 \
                           -e ROBOT_TESTS_DIR=/opt/robotframework/tests/smoke.robot \
-                          -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest
                         """
@@ -104,16 +97,11 @@ pipeline {
             }
         }
         
-        // --- ESTA ES LA ETAPA NUEVA: DESPLIEGUE ---
         stage('Deploy Local') {
             steps {
                 script {
                     echo "--- 🔄 Actualizando contenedor local ---"
-                    // 1. Intentamos borrar el contenedor viejo (si existe)
-                    // El '|| true' hace que no falle el pipeline si es la primera vez y no existe
                     sh "docker rm -f ${CONTAINER_NAME} || true"
-                    
-                    // 2. Arrancamos el nuevo en el puerto 8081
                     sh "docker run -d -p ${APP_PORT}:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
                 }
             }
