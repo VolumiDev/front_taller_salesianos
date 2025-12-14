@@ -56,15 +56,14 @@ pipeline {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- CONFIGURACIÓN GANADORA ---
-                        // 1. Usamos '-u 0' (ROOT) para evitar problemas de permisos.
-                        // 2. Montamos 'tests' LOCAL -> 'tests' CONTENEDOR (Directo).
-                        //    Así 'smoke.robot' está en la raíz del test suite.
-                        // 3. Montamos 'resources' LOCAL -> 'resources' CONTENEDOR (Directo).
-                        //    Así '../resources' funciona perfectamente.
+                        // --- SOLUCIÓN CON VARIABLE DE ENTORNO ---
+                        // 1. Usamos '-e ROBOT_TESTS_DIR=...' para apuntar al archivo exacto.
+                        //    Esto evita que el robot "escanee" y falle; le obliga a correr ese archivo.
+                        // 2. Mantenemos el montaje espejo (tests->tests, resources->resources) para que los imports funcionen.
                         
                         sh """
                           docker run --rm --network ${NETWORK_NAME} -u 0 \
+                          -e ROBOT_TESTS_DIR=/opt/robotframework/tests/smoke.robot \
                           -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
                           -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
