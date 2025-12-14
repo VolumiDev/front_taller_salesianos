@@ -42,12 +42,6 @@ pipeline {
                     echo "--- ⬇️ Descargando tests ---"
                     dir('pruebas-externas') {
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos.git'
-                        
-                        // --- DEBUG: ¡ESTO ES VITAL! ---
-                        // Nos dirá en la consola qué carpetas hay realmente
-                        echo "--- 📂 ESTRUCTURA DESCARGADA: ---"
-                        sh "ls -R"
-                        // ------------------------------
                     }
 
                     def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
@@ -55,7 +49,6 @@ pipeline {
                     try {
                         sh "docker network create ${NETWORK_NAME}"
 
-                        // Arrancamos Angular
                         sh "docker rm -f ${CONTAINER_TEST} || true"
                         sh "docker run -d --network ${NETWORK_NAME} --name ${CONTAINER_TEST} ${IMAGE_NAME}:latest"
                         
@@ -63,16 +56,12 @@ pipeline {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // SOLUCIÓN:
-                        // 1. Montamos la raíz del repo en /opt/robotframework/tests
-                        // 2. Le decimos al robot que ejecute la carpeta "test" (singular)
-                        // IMPORTANTE: Si tu carpeta se llama "tests" (plural), cambia la última palabra.
                         sh """
                           docker run --rm --network ${NETWORK_NAME} \
                           -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest \
-                          /opt/robotframework/tests/test
+                          /opt/robotframework/tests/tests
                         """
 
                     } catch (Exception e) {
