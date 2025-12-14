@@ -36,14 +36,12 @@ pipeline {
             }
         }
 
-stage('Quality Gate (Robot Framework)') {
+        stage('Quality Gate (Robot Framework)') {
             steps {
                 script {
                     echo "--- ⬇️ Descargando tests ---"
                     dir('pruebas-externas') {
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos.git'
-                        // Debug: Verificar que el archivo no está vacío
-                        sh "cat tests/smoke.robot"
                     }
 
                     def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
@@ -58,15 +56,17 @@ stage('Quality Gate (Robot Framework)') {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- CONFIGURACIÓN DEFINITIVA ---
-                        // 1. Montamos la carpeta PADRE 'pruebas-externas' en la raíz '/opt/robotframework/tests'.
-                        //    Así el contenedor ve: /opt/robotframework/tests/tests/smoke.robot
-                        // 2. Usamos '-u 0' (root) para asegurar lectura.
-                        // 3. NO pasamos argumentos. El robot escaneará todo recursivamente.
+                        // --- CONFIGURACIÓN GANADORA ---
+                        // 1. Usamos '-u 0' (ROOT) para evitar problemas de permisos.
+                        // 2. Montamos 'tests' LOCAL -> 'tests' CONTENEDOR (Directo).
+                        //    Así 'smoke.robot' está en la raíz del test suite.
+                        // 3. Montamos 'resources' LOCAL -> 'resources' CONTENEDOR (Directo).
+                        //    Así '../resources' funciona perfectamente.
                         
                         sh """
                           docker run --rm --network ${NETWORK_NAME} -u 0 \
-                          -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest
                         """
