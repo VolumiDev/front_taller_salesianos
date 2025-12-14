@@ -40,32 +40,38 @@ pipeline {
             steps {
                 script {
                     echo "--- ⬇️ Descargando tests ---"
+                    // Limpiamos el directorio antes de descargar para evitar conflictos
+                    sh "rm -rf pruebas-externas"
+                    
                     dir('pruebas-externas') {
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos.git'
                     }
+
+                    echo "--- 🔍 DEBUG: Listando estructura de archivos descargada ---"
+                    // ESTO ES CLAVE: Nos dirá dónde está realmente el archivo smoke.robot
+                    sh "ls -R pruebas-externas"
 
                     def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
                     
                     try {
                         sh "docker network create ${NETWORK_NAME}"
-
                         sh "docker rm -f ${CONTAINER_TEST} || true"
-                        sh "docker run -d --network ${NETWORK_NAME} --name ${CONTAINER_TEST} ${IMAGE_NAME}:latest"
                         
-                        sleep 5
+                        // Esperamos un poco para asegurar que el contenedor app levante antes de lanzar el test
+                        sh "docker run -d --network ${NETWORK_NAME} --name ${CONTAINER_TEST} ${IMAGE_NAME}:latest"
+                        sleep 10 
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- SOLUCIÓN CON VARIABLE DE ENTORNO ---
-                        // 1. Usamos '-e ROBOT_TESTS_DIR=...' para apuntar al archivo exacto.
-                        //    Esto evita que el robot "escanee" y falle; le obliga a correr ese archivo.
-                        // 2. Mantenemos el montaje espejo (tests->tests, resources->resources) para que los imports funcionen.
+                        // CORRECCIÓN DE VOLÚMENES:
+                        // 1. Montamos la carpeta raíz 'pruebas-externas' completa en '/opt/robotframework/tests'.
+                        // 2. Así, si 'smoke.robot' está en la raíz, aparecerá en /opt/robotframework/tests/smoke.robot
+                        // 3. Quitamos el montaje separado de 'resources' porque ya irá incluido en la carpeta raíz.
                         
                         sh """
                           docker run --rm --network ${NETWORK_NAME} -u 0 \
                           -e ROBOT_TESTS_DIR=/opt/robotframework/tests/smoke.robot \
-                          -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
-                          -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
+                          -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest
                         """
@@ -74,7 +80,8 @@ pipeline {
                         currentBuild.result = 'FAILURE'
                         echo "❌ ERROR EN QA. Logs del contenedor Angular:"
                         sh "docker logs ${CONTAINER_TEST}"
-                        error("Fallaron los tests de QA")
+                        // Lanzamos el error para detener el pipeline
+                        error("Fallaron los tests de QA: ${e.message}")
                     } finally {
                         sh "docker rm -f ${CONTAINER_TEST} || true"
                         sh "docker network rm ${NETWORK_NAME} || true"
