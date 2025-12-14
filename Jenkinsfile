@@ -36,7 +36,7 @@ pipeline {
             }
         }
 
-        stage('Quality Gate (Robot Framework)') {
+stage('Quality Gate (Robot Framework)') {
             steps {
                 script {
                     echo "--- ⬇️ Descargando tests ---"
@@ -57,17 +57,19 @@ pipeline {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- SOLUCIÓN FINAL ---
-                        // 1. Montamos la raíz 'pruebas-externas' para que 'resources' esté disponible.
-                        // 2. Usamos la RUTA ABSOLUTA de la carpeta de tests.
-                        //    Al ser una ruta absoluta (/opt...), el contenedor sabe que es una ruta y no un comando.
+                        // --- SOLUCIÓN MAESTRA ---
+                        // 1. Montamos tu carpeta 'tests' (local) -> en 'tests' (contenedor).
+                        //    Así 'smoke.robot' queda en la raíz de tests.
+                        // 2. Montamos tu carpeta 'resources' (local) -> en 'resources' (contenedor).
+                        //    Así la referencia '../resources' funciona.
+                        // 3. NO escribimos nada al final del comando. Dejamos que el contenedor use su default.
                         
                         sh """
                           docker run --rm --network ${NETWORK_NAME} \
-                          -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/tests:/opt/robotframework/tests \
+                          -v ${WORKSPACE}/pruebas-externas/resources:/opt/robotframework/resources \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
-                          ppodgorsek/robot-framework:latest \
-                          /opt/robotframework/tests/tests
+                          ppodgorsek/robot-framework:latest
                         """
 
                     } catch (Exception e) {
