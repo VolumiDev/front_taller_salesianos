@@ -42,8 +42,6 @@ pipeline {
                     echo "--- ⬇️ Descargando tests ---"
                     dir('pruebas-externas') {
                         git branch: 'main', url: 'https://github.com/VolumiDev/robot_taller_salesianos.git'
-                        // Confirmamos que el archivo está ahí
-                        sh "ls -R"
                     }
 
                     def NETWORK_NAME = "qa-network-${BUILD_NUMBER}"
@@ -59,18 +57,17 @@ pipeline {
 
                         echo "--- 🤖 Ejecutando Robot Framework ---"
                         
-                        // --- SOLUCIÓN DEFINITIVA ---
-                        // 1. Montamos 'pruebas-externas' (el padre) en la raíz de tests del contenedor.
-                        //    Así dentro tendremos: /opt/robotframework/tests/tests/smoke.robot
-                        //                          /opt/robotframework/tests/resources/...
-                        // 2. Ejecutamos explícitamente 'tests/smoke.robot'.
+                        // --- SOLUCIÓN FINAL ---
+                        // 1. Montamos la raíz 'pruebas-externas' para que 'resources' esté disponible.
+                        // 2. Usamos la RUTA ABSOLUTA de la carpeta de tests.
+                        //    Al ser una ruta absoluta (/opt...), el contenedor sabe que es una ruta y no un comando.
                         
                         sh """
                           docker run --rm --network ${NETWORK_NAME} \
                           -v ${WORKSPACE}/pruebas-externas:/opt/robotframework/tests \
                           -v ${WORKSPACE}/results:/opt/robotframework/reports \
                           ppodgorsek/robot-framework:latest \
-                          tests/smoke.robot
+                          /opt/robotframework/tests/tests
                         """
 
                     } catch (Exception e) {
